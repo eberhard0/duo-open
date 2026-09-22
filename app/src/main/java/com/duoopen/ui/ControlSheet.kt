@@ -23,11 +23,20 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import com.duoopen.fold.HingeAngleSource
 import com.duoopen.settings.DuoConfig
 import com.duoopen.settings.DuoSettings
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 /**
@@ -38,7 +47,7 @@ import kotlin.math.roundToInt
 @Composable
 fun ControlSheet(
     config: DuoConfig,
-    sensorName: String?,
+    hinge: HingeAngleSource,
     hingeAngle: Float,
     paneTilt: Float,
     simulate: Boolean,
@@ -53,6 +62,23 @@ fun ControlSheet(
     onTestOverlay: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val clipboard = LocalClipboardManager.current
+    val hasSensor = hinge.sensor != null
+    // The sensor line isn't Compose state; poll it while the sheet is up.
+    val sensorStatus by produceState(hinge.statusText(), hinge) {
+        while (true) {
+            delay(250)
+            value = hinge.statusText()
+        }
+    }
+    var showGuide by remember { mutableStateOf(false) }
+    if (showGuide) {
+        SetupGuideDialog(
+            onOpenAccessibility = { showGuide = false; onEnableOverlay() },
+            onDismiss = { showGuide = false },
+        )
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -85,29 +111,44 @@ fun ControlSheet(
                     Button(onClick = onEnableOverlay, modifier = Modifier.weight(1f)) { Text("Turn on in Accessibility") }
                 }
             }
+            if (!overlayEnabled) {
+                TextButton(onClick = { showGuide = true }) { Text("Toggle greyed out?") }
+            }
 
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
 
             Text("Unfold effect", style = MaterialTheme.typography.titleLarge)
             Spacer(Modifier.height(4.dp))
             Text(
-                if (sensorName != null) "Hinge sensor: $sensorName" else "No hinge sensor found on this device",
+                sensorStatus,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (hasSensor && hinge.isCoarse) {
+                Text(
+                    "This hinge sensor only reports 0°, 90° and 180° (the continuous one is locked to system apps on " +
+                        "Galaxy Z Fold 7 and earlier), so the fold plays as a short animation at each stop instead of " +
+                        "tracking your hand.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+            }
             Text(
                 "Hinge ${if (hingeAngle.isNaN()) "—" else "${hingeAngle.roundToInt()}°"}  ·  pane tilt %.1f°".format(paneTilt),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            TextButton(onClick = { clipboard.setText(AnnotatedString(hinge.report())) }) {
+                Text("Copy sensor report")
+            }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Simulate hinge", Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
                 Switch(
                     checked = simulate,
                     onCheckedChange = onSimulateChange,
-                    enabled = sensorName != null,
+                    enabled = hasSensor,
                 )
             }
             if (simulate) {

@@ -126,7 +126,7 @@ fun DuoApp(foldLineFlow: StateFlow<FoldLine?>) {
         if (showSheet) {
             ControlSheet(
                 config = config,
-                sensorName = hinge.sensor?.name,
+                hinge = hinge,
                 hingeAngle = angle,
                 paneTilt = paneTilt,
                 simulate = simulate,

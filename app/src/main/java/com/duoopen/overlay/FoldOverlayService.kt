@@ -45,6 +45,10 @@ import kotlinx.coroutines.withContext
  * The snapshot is frozen for the fraction of a second of a fold, which is
  * invisible in practice; if the hinge stops partway (tent mode) the overlay
  * fades out instead so live content isn't hidden.
+ *
+ * On a stops-only hinge sensor (Galaxy Z Fold 7 and earlier: 0/90/180) the
+ * overlay can't follow the hinge, so each stop change plays a timed ease
+ * instead — the same path the close-onto-cover already uses.
  */
 class FoldOverlayService : AccessibilityService() {
 
@@ -69,6 +73,8 @@ class FoldOverlayService : AccessibilityService() {
     private var demoRunning = false
     /** Bumped per capture so a late or hung screenshot can't act on a newer phase. */
     private var captureGen = 0
+    /** Attempt number of the capture in flight, so only its own timeout can give up. */
+    private var captureAttempt = 0
     /** Overlay is resolving on a timer, ignoring the hinge (see [show]). */
     private var timedResolve = false
 
@@ -90,6 +96,11 @@ class FoldOverlayService : AccessibilityService() {
                 handler.postDelayed(this, 100)
             }
         }
+    }
+
+    /** A timed frost-up that no panel swap has replaced: the fold stalled, let the live screen through. */
+    private val peakHold = Runnable {
+        if (timedResolve && !demoRunning) dismiss(fadeMs = FADE_OUT_STALLED_MS)
     }
 
     /** `adb shell am broadcast -a com.duoopen.DEMO` plays the effect over whatever is on screen. */
@@ -135,11 +146,11 @@ class FoldOverlayService : AccessibilityService() {
         lastHingeMoveMs = SystemClock.uptimeMillis()
         evaluate()
         val tilt = DuoShader.tiltFor(angle, DuoSettings.config.value, innerPanel)
-        if (timedResolve) return
         if (tilt < DuoShader.FLAT_EPSILON && phase == Phase.SHOWING && !demoRunning) {
             // At rest: drop the overlay now rather than easing the last degrees.
+            // (Also ends a timed play early if the hinge is back at rest.)
             dismiss(fadeMs = FADE_OUT_FLAT_MS)
-        } else {
+        } else if (!timedResolve) {
             follower?.setTarget(tilt)
         }
     }
@@ -191,6 +202,7 @@ class FoldOverlayService : AccessibilityService() {
 
     private fun capture(gen: Int, attempt: Int, afterSwap: Boolean, startTilt: Float?) {
         val t0 = SystemClock.uptimeMillis()
+        captureAttempt = attempt
         fun stale() = gen != captureGen || phase != Phase.CAPTURING
         // The framework refuses captures closer than ~333 ms apart, measured
         // from the previous request — so a slow capture costs no extra wait.
@@ -199,8 +211,10 @@ class FoldOverlayService : AccessibilityService() {
             handler.postDelayed({ if (!stale()) capture(gen, attempt + 1, afterSwap, startTilt) }, wait)
         }
         // A screenshot requested as a panel switches off may never call back.
+        // Only the latest attempt's timeout counts: an earlier one must not
+        // give up on behalf of a retry that is still in flight.
         handler.postDelayed({
-            if (!stale()) {
+            if (!stale() && captureAttempt == attempt) {
                 Log.w(TAG, "capture $attempt timed out; giving up")
                 phase = Phase.IDLE
                 demoRunning = false
@@ -261,8 +275,13 @@ class FoldOverlayService : AccessibilityService() {
             return
         }
         val angle = hinge.lastAngle
-        val tilt = startTilt ?: currentTilt()
-        val nearlyDone = afterSwap && startTilt == null &&
+        val live = startTilt == null
+        val coarse = live && hinge.isCoarse
+        val peak = DuoShader.MAX_TILT * DuoSettings.config.value.intensity.coerceAtMost(1f)
+        // A stops-only sensor can't be followed, so each stop change plays a
+        // fixed ease: frost in on leaving rest, frost out on the fresh panel.
+        val tilt = startTilt ?: if (coarse) (if (afterSwap) peak else DuoShader.FLAT_EPSILON * 1.2f) else currentTilt()
+        val nearlyDone = afterSwap && live &&
             if (innerPanel) angle > SKIP_INNER_ABOVE_HINGE else angle < SKIP_COVER_BELOW_HINGE
         if (tilt < DuoShader.FLAT_EPSILON || nearlyDone) {
             // Too late to be worth a pop-in: the fold is (almost) over.
@@ -275,9 +294,13 @@ class FoldOverlayService : AccessibilityService() {
         // overlay would never hear "closed". Resolve on a timer instead — by
         // the time this capture lands the phone is shut anyway, so it reads
         // as the cover settling into focus.
-        val timed = afterSwap && !innerPanel && startTilt == null
-        Log.i(TAG, "showing ${bitmap.width}x${bitmap.height} at tilt=$tilt (capture ${SystemClock.uptimeMillis() - t0}ms)${if (timed) " timed" else ""}")
-        show(bitmap, tilt, fadeIn = afterSwap, timed = timed)
+        val easeTo = when {
+            afterSwap && !innerPanel && live -> 0f
+            coarse -> if (afterSwap) 0f else peak
+            else -> null
+        }
+        Log.i(TAG, "showing ${bitmap.width}x${bitmap.height} at tilt=$tilt (capture ${SystemClock.uptimeMillis() - t0}ms)${easeTo?.let { " easing to $it" } ?: ""}")
+        show(bitmap, tilt, fadeIn = afterSwap, easeTo = easeTo)
     }
 
     /** Samples a coarse grid; true when nothing on screen is brighter than near-black. */
@@ -301,7 +324,12 @@ class FoldOverlayService : AccessibilityService() {
         }
     }
 
-    private fun show(bitmap: Bitmap, startTilt: Float, fadeIn: Boolean = false, timed: Boolean = false) {
+    /**
+     * [easeTo] non-null plays a timed ease to that tilt, ignoring the hinge
+     * until it's back at rest; easing up to a frosted peak holds there
+     * briefly, then fades unless a panel swap has replaced it.
+     */
+    private fun show(bitmap: Bitmap, startTilt: Float, fadeIn: Boolean = false, easeTo: Float? = null) {
         val display = defaultDisplay() ?: run { bitmap.recycle(); phase = Phase.IDLE; return }
         val wm = windowManager ?: createDisplayContext(display)
             .createWindowContext(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY, null)
@@ -350,10 +378,11 @@ class FoldOverlayService : AccessibilityService() {
             if (t < DuoShader.FLAT_EPSILON && !demoRunning) dismiss(fadeMs = FADE_OUT_FLAT_MS)
         }.also { it.snap(startTilt) }
         lastHingeMoveMs = SystemClock.uptimeMillis()
-        timedResolve = timed
-        if (timed) {
-            follower?.tauS = TIMED_RESOLVE_TAU_S
-            follower?.setTarget(0f)
+        timedResolve = easeTo != null
+        if (easeTo != null) {
+            follower?.tauS = if (hinge.isCoarse) COARSE_EASE_TAU_S else TIMED_RESOLVE_TAU_S
+            follower?.setTarget(easeTo)
+            if (easeTo > DuoShader.FLAT_EPSILON) handler.postDelayed(peakHold, PEAK_HOLD_MS)
         } else {
             handler.postDelayed(settleCheck, SETTLE_TIMEOUT_MS)
         }
@@ -363,6 +392,7 @@ class FoldOverlayService : AccessibilityService() {
         val view = overlay ?: return
         Log.i(TAG, "dismiss (fade ${fadeMs}ms) at tilt=${view.tilt}")
         handler.removeCallbacks(settleCheck)
+        handler.removeCallbacks(peakHold)
         follower?.cancel()
         follower = null
         overlay = null
@@ -381,6 +411,7 @@ class FoldOverlayService : AccessibilityService() {
         timedResolve = false
         val view = overlay ?: return
         handler.removeCallbacks(settleCheck)
+        handler.removeCallbacks(peakHold)
         follower?.cancel()
         follower = null
         overlay = null
@@ -436,10 +467,15 @@ class FoldOverlayService : AccessibilityService() {
         /** The framework rejects screenshots closer together than ~333 ms. */
         private const val SCREENSHOT_MIN_INTERVAL_MS = 340L
         private const val MAX_CAPTURE_ATTEMPTS = 3
-        private const val CAPTURE_TIMEOUT_MS = 800L
+        /** A screenshot of a panel that is still lighting up can take most of a second. */
+        private const val CAPTURE_TIMEOUT_MS = 1_100L
         private const val BLACK_THRESHOLD = 30
         /** Ease time constant for the timed resolve (≈ 250 ms to settle). */
         private const val TIMED_RESOLVE_TAU_S = 0.07f
+        /** Slower ease for stops-only sensors, so a play reads as a fold (≈ 450 ms). */
+        private const val COARSE_EASE_TAU_S = 0.12f
+        /** How long a timed frost-up stays before it fades, absent a panel swap. */
+        private const val PEAK_HOLD_MS = 1_200L
         /** Tilt hysteresis for leaving a rest pose, so hinge jitter doesn't fire. */
         private const val REST_LEAVE_TILT = 3f
         /** After a swap, don't bother if the fold is nearly finished by capture time. */

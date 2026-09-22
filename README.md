@@ -31,8 +31,15 @@ wallpaper mode if you'd rather not enable an accessibility service.
 2. Open **Duo Open** → **Tune** → **Turn on in Accessibility** → enable
    *Duo Open full-screen fold*.
    - Android 13+ blocks accessibility for sideloaded apps until you allow
-     it: if the toggle is greyed out, go to *Settings → Apps → Duo Open → ⋮
-     (top right) → Allow restricted settings*, then try again.
+     it. If the toggle is greyed out: tap it once so Android refuses you,
+     then go to *Settings → Apps → Duo Open → ⋮ (top right) → Allow
+     restricted settings* and try again. **Tune → Toggle greyed out?** walks
+     through it with deep links.
+   - Samsung: turn off *Settings → Security and privacy → Auto Blocker*
+     first if the option is missing.
+   - Or skip the whole check by installing over USB — apps installed with
+     `adb install` aren't restricted:
+     `adb uninstall com.duoopen; adb install DuoOpen-<version>.apk`
 3. Fold the phone partway and open it. **Tune → Test it now** replays the
    effect without folding.
 
@@ -60,6 +67,14 @@ be captured and the effect simply doesn't play there.
 - If you stop partway (tent mode) the overlay fades out after ~0.7 s so the
   live screen isn't hidden.
 - Reinstalling the app turns the accessibility service off again.
+- **Stops-only hinge sensors.** Some foldables only let apps read three
+  hinge positions — the Galaxy Z Fold 7 and earlier report 0 / 90 / 180
+  (`resolution 90°`); Samsung's continuous `folding_angle` sensor needs a
+  system permission. On those the fold can't follow your hand: each stop
+  change plays a ~0.5 s ease instead (frost in on leaving rest, frost out
+  once the other panel lights up). **Tune** says so when it detects one,
+  and **Copy sensor report** dumps every hinge-related sensor for a bug
+  report. Fold 8 and the Pixel Folds expose a continuous angle.
 
 ## Build
 
@@ -81,14 +96,14 @@ watch it with `adb logcat -s DuoOverlay`.
 ```
 app/src/main/res/raw/duo_unfold.agsl      fold shader (hinge line, moving side, eye)
 fold/DuoShader.kt                         uniforms, hinge→tilt mapping, fold placement
-fold/HingeAngleSource.kt                  TYPE_HINGE_ANGLE (wake-up fallback, vendor fallback)
+fold/HingeAngleSource.kt                  hinge sensor picker (vendor fallback, coarse detection, report)
 fold/TiltFollower.kt                      per-vsync ease that hides the sensor's 1° steps
 fold/Panels.kt                            inner vs cover panel from the display mode
 overlay/FoldOverlayService.kt             accessibility service: screenshot + overlay
 overlay/FoldOverlayView.kt                draws the snapshot through the shader (half-res layer)
 wallpaper/DuoWallpaperService.kt          live wallpaper engine
 wallpaper/WallpaperImage.kt               picked image / generated default
-ui/                                       Compose app: preview, Tune sheet
+ui/                                       Compose app: preview, Tune sheet, restricted-settings guide
 settings/DuoSettings.kt                   shared tuning (SharedPreferences + StateFlow)
 ```
 
@@ -99,6 +114,26 @@ settings/DuoSettings.kt                   shared tuning (SharedPreferences + Sta
 - The hinge sensor is wake-up only and sends nothing on registration, goes
   quiet at ~30° during a close, and idles anywhere from 0–5° when shut. The
   service compensates for all three.
+
+## Related projects
+
+Other takes on the same idea, useful for comparing approaches:
+
+- [ServerReset/duo-open](https://github.com/ServerReset/duo-open) and
+  [nihal711/Z-Fold-Duo-TEST](https://github.com/nihal711/Z-Fold-Duo-TEST)
+  — forks of this app for the Galaxy Z Fold 7/8. The sensor picker and the
+  coarse-sensor handling here follow what they found on Samsung hardware;
+  Z-Fold-Duo also streams live frames through an embedded ADB shell process.
+- [iamkeeler/FoldFX](https://github.com/iamkeeler/FoldFX) — no screenshots:
+  a transparent overlay with compositor blur behind it, plus scrim and light
+  sweep. Live content and no accessibility service, but no perspective and
+  nothing over the lock screen.
+- [keepYaoung/android-also-could-fold](https://github.com/keepYaoung/android-also-could-fold)
+  — Samsung compositor snapshots via a local ADB client.
+- [mossan819/DuoFoldWallpaper](https://github.com/mossan819/DuoFoldWallpaper),
+  [StepFPV/foldwall](https://github.com/StepFPV/foldwall),
+  [Ant-lib/hingewave](https://github.com/Ant-lib/hingewave) — live-wallpaper
+  only variants.
 
 ## License
 
