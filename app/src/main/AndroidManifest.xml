@@ -23,18 +23,7 @@
             </intent-filter>
         </activity>
 
-        <service
-            android:name=".overlay.FoldOverlayService"
-            android:exported="true"
-            android:label="@string/accessibility_name"
-            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
-            <intent-filter>
-                <action android:name="android.accessibilityservice.AccessibilityService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.accessibilityservice"
-                android:resource="@xml/duo_accessibility" />
-        </service>
+        <!-- The accessibility service lives in src/full/AndroidManifest.xml. -->
 
         <service
             android:name=".wallpaper.DuoWallpaperService"

@@ -26,7 +26,7 @@ import androidx.compose.ui.unit.dp
  * has tried the toggle once and been refused, hence the order of the steps.
  */
 @Composable
-fun SetupGuideDialog(onOpenAccessibility: () -> Unit, onDismiss: () -> Unit) {
+fun SetupGuide(onOpenAccessibility: () -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val samsung = Build.MANUFACTURER.equals("samsung", ignoreCase = true)
     AlertDialog(

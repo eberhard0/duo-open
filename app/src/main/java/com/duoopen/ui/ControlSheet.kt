@@ -57,6 +57,7 @@ fun ControlSheet(
     onPickImage: () -> Unit,
     onDefaultImage: () -> Unit,
     onSetWallpaper: () -> Unit,
+    overlayAvailable: Boolean,
     overlayEnabled: Boolean,
     onEnableOverlay: () -> Unit,
     onTestOverlay: () -> Unit,
@@ -73,7 +74,7 @@ fun ControlSheet(
     }
     var showGuide by remember { mutableStateOf(false) }
     if (showGuide) {
-        SetupGuideDialog(
+        SetupGuide(
             onOpenAccessibility = { showGuide = false; onEnableOverlay() },
             onDismiss = { showGuide = false },
         )
@@ -91,28 +92,39 @@ fun ControlSheet(
                 .navigationBarsPadding()
                 .padding(bottom = 16.dp),
         ) {
-            Text("Full-screen fold", style = MaterialTheme.typography.titleLarge)
-            Spacer(Modifier.height(4.dp))
-            Text(
-                if (overlayEnabled) {
-                    "On — folds the whole screen (any wallpaper, icons, apps) as you open the phone."
-                } else {
-                    "Off — only the live wallpaper folds. Turn on “Duo Open full-screen fold” under Accessibility to fold everything."
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (overlayEnabled) {
-                    Button(onClick = onTestOverlay, modifier = Modifier.weight(1f)) { Text("Test it now") }
-                    OutlinedButton(onClick = onEnableOverlay, modifier = Modifier.weight(1f)) { Text("Accessibility") }
-                } else {
-                    Button(onClick = onEnableOverlay, modifier = Modifier.weight(1f)) { Text("Turn on in Accessibility") }
+            if (overlayAvailable) {
+                Text("Full-screen fold", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    if (overlayEnabled) {
+                        "On — folds the whole screen (any wallpaper, icons, apps) as you open the phone."
+                    } else {
+                        "Off — only the live wallpaper folds. Turn on “Duo Open full-screen fold” under Accessibility to fold everything."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (overlayEnabled) {
+                        Button(onClick = onTestOverlay, modifier = Modifier.weight(1f)) { Text("Test it now") }
+                        OutlinedButton(onClick = onEnableOverlay, modifier = Modifier.weight(1f)) { Text("Accessibility") }
+                    } else {
+                        Button(onClick = onEnableOverlay, modifier = Modifier.weight(1f)) { Text("Turn on in Accessibility") }
+                    }
                 }
-            }
-            if (!overlayEnabled) {
-                TextButton(onClick = { showGuide = true }) { Text("Toggle greyed out?") }
+                if (!overlayEnabled) {
+                    TextButton(onClick = { showGuide = true }) { Text("Toggle greyed out?") }
+                }
+            } else {
+                Text("Lite edition", style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Wallpaper only: the fold plays on the home and lock screen wallpaper, never over apps. " +
+                        "No accessibility service, so nothing for Play Protect to flag. The full edition adds the system-wide fold.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             HorizontalDivider(Modifier.padding(vertical = 12.dp))

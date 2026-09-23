@@ -22,8 +22,25 @@ android {
         // AGSL RuntimeShader needs API 33 (OnePlus Open ships Android 13+).
         minSdk = 33
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
+    }
+
+    // full: system-wide fold via the accessibility service (+ wallpaper).
+    // lite: live wallpaper only — no accessibility service in the manifest,
+    // so Play Protect / restricted settings never get involved. Separate app
+    // id so both can be installed side by side.
+    flavorDimensions += "edition"
+    productFlavors {
+        create("full") {
+            dimension = "edition"
+            isDefault = true
+        }
+        create("lite") {
+            dimension = "edition"
+            applicationIdSuffix = ".lite"
+            versionNameSuffix = "-lite"
+        }
     }
 
     signingConfigs {

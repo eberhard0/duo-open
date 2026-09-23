@@ -38,7 +38,7 @@ import com.duoopen.fold.DuoShader
 import com.duoopen.fold.FoldLine
 import com.duoopen.fold.HingeAngleSource
 import com.duoopen.fold.isInnerPanel
-import com.duoopen.overlay.FoldOverlayService
+import com.duoopen.overlay.OverlayFeature
 import com.duoopen.overlay.OverlayState
 import com.duoopen.settings.DuoSettings
 import com.duoopen.wallpaper.DuoWallpaperService
@@ -90,7 +90,7 @@ fun DuoApp(foldLineFlow: StateFlow<FoldLine?>) {
         onPauseOrDispose { }
     }
     val wallpaperActive = remember(resumeTick) { isWallpaperActive(context) }
-    val overlayEnabled = remember(resumeTick) { FoldOverlayService.isEnabled(context) }
+    val overlayEnabled = remember(resumeTick) { OverlayFeature.isEnabled(context) }
     val overlayRunning by OverlayState.running.collectAsStateWithLifecycle()
 
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
@@ -138,18 +138,16 @@ fun DuoApp(foldLineFlow: StateFlow<FoldLine?>) {
                 },
                 onDefaultImage = { WallpaperImage.reset(context.applicationContext) },
                 onSetWallpaper = setWallpaper,
+                overlayAvailable = OverlayFeature.AVAILABLE,
                 overlayEnabled = overlayEnabled,
                 onEnableOverlay = { openAccessibilitySettings(context) },
                 onTestOverlay = {
-                    val service = FoldOverlayService.instance
-                    if (service == null) {
-                        Toast.makeText(context, "Turn on the full-screen fold first", Toast.LENGTH_SHORT).show()
-                    } else {
-                        showSheet = false
-                        // Let the sheet finish closing so it isn't in the snapshot.
-                        scope.launch {
-                            kotlinx.coroutines.delay(450)
-                            service.playDemo()
+                    showSheet = false
+                    // Let the sheet finish closing so it isn't in the snapshot.
+                    scope.launch {
+                        kotlinx.coroutines.delay(450)
+                        if (!OverlayFeature.playDemo()) {
+                            Toast.makeText(context, "Turn on the full-screen fold first", Toast.LENGTH_SHORT).show()
                         }
                     }
                 },

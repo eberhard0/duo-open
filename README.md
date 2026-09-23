@@ -26,8 +26,19 @@ wallpaper mode if you'd rather not enable an accessibility service.
 
 ## Install
 
-1. Download `DuoOpen-<version>.apk` from
-   [Releases](../../releases) and install it.
+Two editions on the [Releases](../../releases) page:
+
+- **`DuoOpen-<version>.apk`** — full: system-wide fold (accessibility
+  service) plus the live wallpaper. Needs the restricted-settings dance below.
+- **`DuoOpen-<version>-lite.apk`** — wallpaper only. No accessibility
+  service is declared or compiled in, so Play Protect and restricted settings
+  never get involved; the fold plays on the home/lock-screen wallpaper and
+  icons stay sharp. Separate app id (`com.duoopen.lite`), so it installs
+  alongside the full edition.
+
+Full edition:
+
+1. Download `DuoOpen-<version>.apk` and install it.
 2. Open **Duo Open** → **Tune** → **Turn on in Accessibility** → enable
    *Duo Open full-screen fold*.
    - Android 13+ blocks accessibility for sideloaded apps until you allow
@@ -79,9 +90,13 @@ be captured and the effect simply doesn't play there.
 ## Build
 
 ```
-./gradlew assembleDebug        # debug-signed
-./gradlew assembleRelease      # signed with keystore.properties if present
+./gradlew assembleFullDebug     # debug-signed, full edition
+./gradlew assembleLiteRelease   # wallpaper-only edition
+./gradlew assembleRelease       # both editions, signed with keystore.properties if present
 ```
+The `full`/`lite` product flavors differ only by `src/full` (accessibility
+service, overlay, setup guide) and `src/lite` (stubs); everything else is
+shared.
 Release signing reads `keystore.properties` in the project root
 (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`); without it the
 release build uses the debug key.
@@ -99,8 +114,9 @@ fold/DuoShader.kt                         uniforms, hinge→tilt mapping, fold p
 fold/HingeAngleSource.kt                  hinge sensor picker (vendor fallback, coarse detection, report)
 fold/TiltFollower.kt                      per-vsync ease that hides the sensor's 1° steps
 fold/Panels.kt                            inner vs cover panel from the display mode
-overlay/FoldOverlayService.kt             accessibility service: screenshot + overlay
-overlay/FoldOverlayView.kt                draws the snapshot through the shader (half-res layer)
+overlay/OverlayFeature.kt                 per-flavor facade (full: the service; lite: stubs)
+src/full/…/overlay/FoldOverlayService.kt  accessibility service: screenshot + overlay
+src/full/…/overlay/FoldOverlayView.kt     draws the snapshot through the shader (half-res layer)
 wallpaper/DuoWallpaperService.kt          live wallpaper engine
 wallpaper/WallpaperImage.kt               picked image / generated default
 ui/                                       Compose app: preview, Tune sheet, restricted-settings guide
