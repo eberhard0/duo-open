@@ -76,7 +76,7 @@ class DuoWallpaperService : WallpaperService() {
         private var timedPlay = false
 
         private val release = Runnable {
-            follower.tauS = TIMED_TAU_S
+            follower.tauS = timedTau()
             follower.setTarget(0f)
         }
 
@@ -185,7 +185,7 @@ class DuoWallpaperService : WallpaperService() {
         private fun easeTo(tilt: Float) {
             handler.removeCallbacks(release)
             timedPlay = true
-            follower.tauS = TIMED_TAU_S
+            follower.tauS = timedTau()
             follower.setTarget(tilt)
         }
 
@@ -199,7 +199,7 @@ class DuoWallpaperService : WallpaperService() {
             timedPlay = true
             follower.snap(peakTilt())
             draw()
-            handler.postDelayed(release, PEAK_HOLD_MS)
+            handler.postDelayed(release, peakHoldMs())
         }
 
         private fun endTimedPlay() {
@@ -213,6 +213,12 @@ class DuoWallpaperService : WallpaperService() {
             hinge.activeSensor != null && !hinge.isCoarse && hinge.lastEventAgeMs() < SENSOR_FRESH_MS
 
         private fun peakTilt(): Float = DuoShader.tiltForHinge(DuoShader.PANEL_ON_HINGE, config)
+
+        /** Timed fold: frost holds for ~35 % of the configured duration, then eases out over the rest. */
+        private fun peakHoldMs(): Long = (config.foldDurationMs * 0.35f).toLong()
+
+        /** Ease time constant so the clear-out settles (~3.5 τ) within the remaining ~65 %. */
+        private fun timedTau(): Float = config.foldDurationMs * 0.65f / 3_500f
 
         private fun tiltFor(angle: Float): Float =
             if (angle.isNaN()) 0f else DuoShader.tiltForHinge(angle, config)
@@ -276,10 +282,6 @@ class DuoWallpaperService : WallpaperService() {
 
     private companion object {
         const val TAG = "DuoWallpaper"
-        /** Slow ease for timed plays, so a play reads as a fold (≈ 450 ms). */
-        const val TIMED_TAU_S = 0.12f
-        /** Frost holds this long on the fresh panel before clearing. */
-        const val PEAK_HOLD_MS = 250L
         /** On a stops-only sensor, frost at the 90° stop lasts this long before clearing. */
         const val COARSE_HOLD_MS = 1_200L
         /** A fine sensor reading younger than this means the sensor is driving. */

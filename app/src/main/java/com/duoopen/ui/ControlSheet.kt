@@ -219,6 +219,13 @@ fun ControlSheet(
                 range = 0.5f..3f,
             )
             LabeledSlider(
+                label = "Fold duration",
+                valueText = "${config.foldDurationMs} ms",
+                value = config.foldDurationMs.toFloat(),
+                onValueChange = { v -> DuoSettings.update { it.copy(foldDurationMs = (v / 50f).roundToInt() * 50) } },
+                range = 300f..2500f,
+            )
+            LabeledSlider(
                 label = "Frost",
                 valueText = "%.2f".format(config.blurSpread),
                 value = config.blurSpread,

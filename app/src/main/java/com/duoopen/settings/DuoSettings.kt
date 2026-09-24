@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.asStateFlow
  *   -1 = left (top when the fold is horizontal), +1 = right (bottom), 0 = both.
  * @param coverFrostFromRight On the cover screen, frost grows from the right
  *   edge (hinge on the left); false mirrors it.
+ * @param foldDurationMs Length of the timed fold (sensor-less or stops-only play): frost holds for
+ *   about a third, then clears over the rest.
  * @param imageVersion Bumped whenever the wallpaper image changes.
  */
 data class DuoConfig(
@@ -33,6 +35,7 @@ data class DuoConfig(
     val foldSplitsLong: Boolean = false,
     val movingSide: Int = -1,
     val coverFrostFromRight: Boolean = true,
+    val foldDurationMs: Int = 700,
     val imageVersion: Long = 0L,
 )
 
@@ -54,6 +57,7 @@ object DuoSettings {
             foldSplitsLong = prefs.getBoolean("foldSplitsLong", d.foldSplitsLong),
             movingSide = prefs.getInt("movingSide", d.movingSide),
             coverFrostFromRight = prefs.getBoolean("coverFrostFromRight", d.coverFrostFromRight),
+            foldDurationMs = prefs.getInt("foldDurationMs", d.foldDurationMs),
             imageVersion = prefs.getLong("imageVersion", d.imageVersion),
         )
     }
@@ -70,6 +74,7 @@ object DuoSettings {
             putBoolean("foldSplitsLong", next.foldSplitsLong)
             putInt("movingSide", next.movingSide)
             putBoolean("coverFrostFromRight", next.coverFrostFromRight)
+            putInt("foldDurationMs", next.foldDurationMs)
             putLong("imageVersion", next.imageVersion)
         }
     }
