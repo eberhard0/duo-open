@@ -140,7 +140,7 @@ fun ControlSheet(
             if (hasSensor && hinge.isCoarse) {
                 Text(
                     "This hinge sensor only reports 0°, 90° and 180° (the continuous one is locked to system apps on " +
-                        "Galaxy Z Fold 7 and earlier), so the fold plays as a short animation at each stop instead of " +
+                        "Galaxy Z Fold 7 and 8), so the fold plays as a short animation at each stop instead of " +
                         "tracking your hand.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.tertiary,

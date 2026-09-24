@@ -173,7 +173,12 @@ class DuoWallpaperService : WallpaperService() {
                 angle >= DuoShader.FLAT_HINGE -> easeTo(0f)
                 angle <= DuoShader.PANEL_ON_HINGE -> follower.snap(0f)
                 // A surface-swap play may already be running; don't restart it.
-                else -> if (!timedPlay) easeTo(peakTilt())
+                else -> if (!timedPlay) {
+                    easeTo(peakTilt())
+                    // Half open (flex mode) is a place to rest; clear after a beat
+                    // rather than staying frosted until the next stop.
+                    handler.postDelayed(release, COARSE_HOLD_MS)
+                }
             }
         }
 
@@ -275,6 +280,8 @@ class DuoWallpaperService : WallpaperService() {
         const val TIMED_TAU_S = 0.12f
         /** Frost holds this long on the fresh panel before clearing. */
         const val PEAK_HOLD_MS = 250L
+        /** On a stops-only sensor, frost at the 90° stop lasts this long before clearing. */
+        const val COARSE_HOLD_MS = 1_200L
         /** A fine sensor reading younger than this means the sensor is driving. */
         const val SENSOR_FRESH_MS = 3_000L
     }
