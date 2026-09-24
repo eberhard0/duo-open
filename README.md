@@ -9,6 +9,16 @@ those are untested — reports welcome.
 Based on the AGSL shader from
 [Atomicx7/Duo-animation](https://github.com/Atomicx7/Duo-animation).
 
+> **This fork (eberhard0/duo-open)** is built for the Galaxy Z Fold 8, where no
+> hinge angle sensor is readable by apps. The live wallpaper here no longer
+> depends on the sensor: it plays the fold as a timed frost-to-clear the moment
+> the inner screen lights up, plays a timed ease per stop on 0/90/180 sensors,
+> and tracks the hinge directly where a fine sensor exists. Tune has a
+> "Play on wallpaper now" button to check it without folding. App id is
+> `com.eberhard.duoopen` so it installs beside upstream. Signed APKs for both
+> editions come from GitHub Actions on every `v*` tag. Upstream:
+> [marcoazeem/duo-open](https://github.com/marcoazeem/duo-open) (MIT).
+
 ## What it does
 
 Each half of the screen acts as a pane of frosted glass hinged at the crease.

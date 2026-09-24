@@ -61,6 +61,7 @@ fun ControlSheet(
     overlayEnabled: Boolean,
     onEnableOverlay: () -> Unit,
     onTestOverlay: () -> Unit,
+    onTestWallpaper: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     val clipboard = LocalClipboardManager.current
@@ -152,6 +153,18 @@ fun ControlSheet(
             )
             TextButton(onClick = { clipboard.setText(AnnotatedString(hinge.report())) }) {
                 Text("Copy sensor report")
+            }
+            if (!hasSensor) {
+                Text(
+                    "No hinge angle sensor is readable by apps on this phone (Samsung keeps its fold angle for system apps). " +
+                        "The wallpaper still plays the fold each time the inner screen turns on.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = onTestWallpaper, modifier = Modifier.fillMaxWidth()) {
+                Text("Play on wallpaper now")
             }
 
             Spacer(Modifier.height(4.dp))

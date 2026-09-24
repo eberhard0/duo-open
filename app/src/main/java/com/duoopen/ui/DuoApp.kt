@@ -1,5 +1,6 @@
 package com.duoopen.ui
 
+import android.app.Activity
 import android.app.WallpaperManager
 import android.content.ComponentName
 import android.content.Context
@@ -42,6 +43,7 @@ import com.duoopen.overlay.OverlayFeature
 import com.duoopen.overlay.OverlayState
 import com.duoopen.settings.DuoSettings
 import com.duoopen.wallpaper.DuoWallpaperService
+import com.duoopen.wallpaper.WallpaperDemo
 import com.duoopen.wallpaper.WallpaperImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
@@ -148,6 +150,20 @@ fun DuoApp(foldLineFlow: StateFlow<FoldLine?>) {
                         kotlinx.coroutines.delay(450)
                         if (!OverlayFeature.playDemo()) {
                             Toast.makeText(context, "Turn on the full-screen fold first", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                },
+                onTestWallpaper = {
+                    if (!wallpaperActive) {
+                        Toast.makeText(context, "Set the live wallpaper first", Toast.LENGTH_SHORT).show()
+                    } else {
+                        showSheet = false
+                        // Step out of the way so the wallpaper is on screen, then play.
+                        scope.launch {
+                            kotlinx.coroutines.delay(300)
+                            (context as? Activity)?.moveTaskToBack(true)
+                            kotlinx.coroutines.delay(600)
+                            WallpaperDemo.request()
                         }
                     }
                 },

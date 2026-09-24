@@ -1,29 +1,29 @@
-import java.util.Properties
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-// Release signing comes from an untracked keystore.properties (see README);
-// without one, release builds fall back to the debug key so anyone can build.
-val keystoreProps = Properties().apply {
-    val f = rootProject.file("keystore.properties")
-    if (f.exists()) f.inputStream().use { load(it) }
-}
+// Release signing comes from CI through the environment (KEYSTORE_FILE,
+// KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD); without it, release builds fall
+// back to the debug key so anyone can build. VERSION_CODE / VERSION_NAME
+// likewise come from the CI tag when set.
+val keystoreFile = System.getenv("KEYSTORE_FILE")
+val ciVersionCode = System.getenv("VERSION_CODE")?.toIntOrNull()
+val ciVersionName = System.getenv("VERSION_NAME")
 
 android {
     namespace = "com.duoopen"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.duoopen"
-        // AGSL RuntimeShader needs API 33 (OnePlus Open ships Android 13+).
+        // Own app id so this build installs beside (not over) the upstream one.
+        applicationId = "com.eberhard.duoopen"
+        // AGSL RuntimeShader needs API 33.
         minSdk = 33
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.2.0"
+        versionCode = ciVersionCode ?: 4
+        versionName = ciVersionName ?: "1.3.0"
     }
 
     // full: system-wide fold via the accessibility service (+ wallpaper).
@@ -44,12 +44,12 @@ android {
     }
 
     signingConfigs {
-        if (keystoreProps.isNotEmpty()) {
+        if (keystoreFile != null) {
             create("release") {
-                storeFile = rootProject.file(keystoreProps.getProperty("storeFile"))
-                storePassword = keystoreProps.getProperty("storePassword")
-                keyAlias = keystoreProps.getProperty("keyAlias")
-                keyPassword = keystoreProps.getProperty("keyPassword")
+                storeFile = file(keystoreFile)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
             }
         }
     }
